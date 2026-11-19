@@ -1,0 +1,2219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Livro Virtual Flipbook Interativo</title>
+  
+  <!-- URL reservada para o Favicon -->
+  <link rel="icon" href="https://exemplo.com/favicon.ico" type="image/x-icon">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- PDF.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  </script>
+
+  <!-- Google Font - Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      overflow: hidden;
+      height: 100vh;
+      height: 100dvh;
+      touch-action: manipulation;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Botões Ativos em Amarelo Ouro (Gradient Gold) com texto em Preto */
+    .gold-gradient-btn {
+      background: linear-gradient(135deg, #fde047 0%, #f59e0b 50%, #d97706 100%) !important;
+      color: #000000 !important;
+      font-weight: 600;
+      border: 1px solid #fef08a !important;
+      box-shadow: 0 3px 12px rgba(245, 158, 11, 0.35);
+      transition: all 0.2s ease;
+    }
+    .gold-gradient-btn i,
+    .gold-gradient-btn span {
+      color: #000000 !important;
+    }
+    .gold-gradient-btn:hover:not(:disabled) {
+      background: linear-gradient(135deg, #fef08a 0%, #fbbf24 50%, #f59e0b 100%) !important;
+      box-shadow: 0 5px 16px rgba(245, 158, 11, 0.55);
+    }
+
+    /* Hover padrão em Amarelo Ouro invertendo texto e ícones para Preto */
+    .gold-hover {
+      transition: all 0.18s ease;
+    }
+    .gold-hover:hover:not(:disabled) {
+      background: linear-gradient(135deg, #fde047 0%, #f59e0b 50%, #d97706 100%) !important;
+      color: #000000 !important;
+      border-color: #fef08a !important;
+    }
+    .gold-hover:hover:not(:disabled) i,
+    .gold-hover:hover:not(:disabled) span,
+    .gold-hover:hover:not(:disabled) div {
+      color: #000000 !important;
+    }
+    .gold-hover:hover:not(:disabled) mark {
+      background-color: #0f172a !important;
+      color: #fde047 !important;
+    }
+
+    /* No modal de capítulos, mantém a letra da página (Pág. X) branca no hover */
+    .chapter-option-btn:hover span:last-child {
+      color: #ffffff !important;
+    }
+
+    /* Selo ATUAL sempre com texto em preto sem inversão no hover */
+    .chapter-option-btn .chapter-current-tag,
+    .chapter-option-btn:hover .chapter-current-tag,
+    .chapter-option-btn.active-chapter .chapter-current-tag,
+    .chapter-option-btn.active-chapter:hover .chapter-current-tag {
+      background: linear-gradient(135deg, #fde047 0%, #f59e0b 50%, #d97706 100%) !important;
+      color: #000000 !important;
+    }
+
+    /* Capítulo ativo no modal */
+    .chapter-option-btn.active-chapter {
+      background: linear-gradient(135deg, rgba(253, 224, 71, 0.22) 0%, rgba(245, 158, 11, 0.14) 100%) !important;
+      border-color: #fbbf24 !important;
+      box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.45), 0 6px 18px rgba(245, 158, 11, 0.2);
+    }
+    .chapter-option-btn.active-chapter .chapter-badge {
+      background: linear-gradient(135deg, #fde047 0%, #f59e0b 50%, #d97706 100%) !important;
+      color: #000000 !important;
+      font-weight: 700;
+    }
+    .chapter-option-btn.active-chapter:hover .chapter-badge {
+      color: #000000 !important;
+    }
+
+    /* Itens de Dropdown Customizado (Lista de Páginas e Velocidade de Áudio) */
+    .custom-dropdown-option {
+      color: #f8fafc;
+      transition: all 0.15s ease;
+    }
+    .custom-dropdown-option:hover,
+    .custom-dropdown-option.active-option {
+      background: linear-gradient(135deg, #fde047 0%, #f59e0b 50%, #d97706 100%) !important;
+      color: #000000 !important;
+      font-weight: 600;
+    }
+
+    .gold-outline {
+      border-color: rgba(245, 158, 11, 0.45) !important;
+    }
+
+    #flipbook-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      transform-origin: center center;
+      transition: transform 0.15s ease-out;
+    }
+
+    /* Motor 3D Customizado do Livro */
+    .custom-book-stage {
+      position: relative;
+      perspective: 2600px;
+      user-select: none;
+      transition: width 0.35s cubic-bezier(0.25, 0.8, 0.25, 1), transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    .custom-book-world {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+    }
+
+    .book-slot {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      background-color: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.65);
+    }
+
+    .book-slot-left {
+      left: 0;
+      border-radius: 4px 0 0 4px;
+    }
+
+    .book-slot-right {
+      right: 0;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .book-slot-single {
+      left: 0;
+      border-radius: 4px;
+    }
+
+    .spine-crease-left {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 34px;
+      height: 100%;
+      background: linear-gradient(to left, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.08) 35%, rgba(0, 0, 0, 0) 100%);
+      pointer-events: none;
+      z-index: 12;
+    }
+
+    .spine-crease-right {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 34px;
+      height: 100%;
+      background: linear-gradient(to right, rgba(0, 0, 0, 0.22) 0%, rgba(0, 0, 0, 0.08) 35%, rgba(0, 0, 0, 0) 100%);
+      pointer-events: none;
+      z-index: 12;
+    }
+
+    .under-page-shadow {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 15;
+      opacity: 0;
+      transition: opacity 0.05s linear;
+    }
+
+    .turning-sheet {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      transform-style: preserve-3d;
+      z-index: 30;
+      pointer-events: none;
+      will-change: transform;
+    }
+
+    .sheet-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      background-color: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+
+    .sheet-face-front {
+      transform: rotateY(0deg);
+      border-radius: 0 4px 4px 0;
+    }
+
+    .sheet-face-back {
+      transform: rotateY(180deg);
+      border-radius: 4px 0 0 4px;
+    }
+
+    .sheet-fold-lighting {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .page-flip-element {
+      position: relative;
+      background-color: #ffffff;
+      width: 100%;
+      height: 100%;
+    }
+
+    .text-layer {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      opacity: 1;
+      line-height: 1.0;
+      user-select: text;
+      -webkit-user-select: text;
+      z-index: 5;
+    }
+
+    .text-layer > span {
+      color: transparent;
+      position: absolute;
+      white-space: pre;
+      cursor: text;
+      transform-origin: 0% 0%;
+    }
+
+    .text-layer ::selection {
+      background: #fbbf24 !important;
+      color: #000000 !important;
+    }
+
+    .text-layer ::-moz-selection {
+      background: #fbbf24 !important;
+      color: #000000 !important;
+    }
+
+    .hand-mode-active {
+      cursor: grab !important;
+    }
+    .hand-mode-active:active {
+      cursor: grabbing !important;
+    }
+    .hand-mode-active .text-layer {
+      pointer-events: none !important;
+      user-select: none !important;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #f59e0b;
+    }
+
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border-left-color: #f59e0b;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .transition-all-custom {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.pdf-inverted-reading .page-flip-element img {
+      filter: invert(0.92) hue-rotate(180deg) contrast(1.05);
+      transition: filter 0.25s ease;
+    }
+
+    body.pdf-inverted-reading .book-slot,
+    body.pdf-inverted-reading .sheet-face,
+    body.pdf-inverted-reading .page-flip-element {
+      background-color: #141414 !important;
+      transition: background-color 0.25s ease;
+    }
+
+    /* Formato Retangular Vertical para os Botões de Folhear */
+    .vertical-nav-btn {
+      width: 36px;
+      height: 90px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    @media (min-width: 768px) {
+      .vertical-nav-btn {
+        width: 44px;
+        height: 110px;
+      }
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between overflow-hidden bg-slate-950 text-slate-100">
+
+  <!-- TOP NAVBAR -->
+  <header class="glass-panel z-40 w-full max-w-full px-1.5 sm:px-4 py-1.5 sm:py-2.5 flex items-center justify-between shadow-lg gap-1 sm:gap-2">
+    <div class="flex items-center space-x-1.5 sm:space-x-2.5 min-w-0 shrink">
+      <!-- URL reservada para o Logotipo do Livro na superior esquerda no lugar do título -->
+      <a href="#" id="book-logo-link" class="shrink-0 flex items-center" title="Logotipo do Livro">
+        <img id="book-logo-img" src="https://via.placeholder.com/140x40/f59e0b/000000?text=LOGO+DO+LIVRO" alt="Logotipo do Livro" class="h-7 sm:h-9 max-w-[78px] sm:max-w-[160px] object-contain rounded-lg border border-amber-400/70 shadow-md">
+      </a>
+      <p id="pdf-filename" class="text-xs text-slate-400 truncate max-w-[130px] sm:max-w-xs hidden md:block">Carregando livro...</p>
+    </div>
+
+    <div class="flex items-center space-x-1 sm:space-x-2 min-w-0 shrink-0">
+      <!-- Botão para Abrir o Modal de Capítulos -->
+      <button id="open-chapters-modal" type="button" class="h-8 px-2 sm:px-2.5 rounded-lg bg-slate-800 gold-hover text-amber-400 text-xs font-medium inline-flex items-center gap-1.5 border border-amber-500/40" title="Selecionar Capítulo">
+        <i class="fa-solid fa-bookmark"></i>
+        <span class="hidden sm:inline">Capítulos</span>
+      </button>
+
+      <!-- Botão Alternar Modo de Leitura do PDF -->
+      <button id="theme-toggle-btn" class="h-8 w-7 sm:h-9 sm:w-9 rounded-lg bg-slate-800 gold-hover text-slate-300 transition-all-custom inline-flex items-center justify-center shrink-0" title="Inverter Cores da Leitura do PDF">
+        <i class="fa-solid fa-circle-half-stroke text-xs sm:text-sm"></i>
+      </button>
+
+      <!-- Active Top Controls -->
+      <div id="top-controls" class="flex items-center space-x-1 sm:space-x-2 flex-nowrap justify-end">
+        <!-- Botão Pesquisa -->
+        <button id="toggle-search-btn" class="h-8 w-7 sm:h-9 sm:w-9 rounded-lg bg-slate-800 gold-hover text-slate-300 transition-all-custom inline-flex items-center justify-center shrink-0" title="Pesquisar no Livro">
+          <i class="fa-solid fa-magnifying-glass text-xs sm:text-sm"></i>
+        </button>
+
+        <!-- Controles de Áudio (TTS) com Velocidade Customizada -->
+        <div class="h-8 sm:h-9 flex items-center bg-slate-800 rounded-lg px-0.5 sm:px-1 border border-amber-500/40 gap-0.5 sm:gap-1 relative shrink-0">
+          <button id="tts-page-btn" class="h-6 sm:h-7 px-1.5 sm:px-2 rounded-md gold-hover text-slate-200 text-xs font-medium transition-all-custom inline-flex items-center justify-center gap-1.5" title="Ouvir página atual">
+            <i class="fa-solid fa-headphones text-xs"></i>
+            <span class="hidden lg:inline">Ouvir</span>
+          </button>
+          <button id="tts-stop-btn" class="hidden h-6 sm:h-7 px-1.5 sm:px-2 rounded-md bg-red-600/90 hover:bg-red-500 text-white text-xs transition-all-custom inline-flex items-center justify-center" title="Parar leitura">
+            <i class="fa-solid fa-stop text-xs"></i>
+          </button>
+
+          <!-- Dropdown Customizado de Velocidade Topo -->
+          <div class="relative flex items-center" id="top-speed-dropdown-wrapper">
+            <button id="tts-speed-btn" class="h-6 sm:h-7 bg-slate-900 gold-hover text-amber-400 font-mono text-[10px] sm:text-xs rounded px-1 sm:px-2 border border-amber-500/40 inline-flex items-center justify-center gap-0.5 sm:gap-1" title="Velocidade da fala">
+              <span id="tts-speed-label">1.0x</span>
+              <i class="fa-solid fa-chevron-down text-[8px] sm:text-[9px]"></i>
+            </button>
+            <div id="tts-speed-menu" class="hidden fixed sm:absolute right-2 sm:right-0 top-12 sm:top-full sm:mt-1.5 w-20 bg-slate-900 border border-amber-500/50 rounded-lg shadow-2xl overflow-hidden z-50">
+              <button type="button" data-speed="0.75" class="custom-dropdown-option w-full text-left px-2.5 py-1.5 text-xs font-mono">0.75x</button>
+              <button type="button" data-speed="1.0" class="custom-dropdown-option active-option w-full text-left px-2.5 py-1.5 text-xs font-mono">1.0x</button>
+              <button type="button" data-speed="1.25" class="custom-dropdown-option w-full text-left px-2.5 py-1.5 text-xs font-mono">1.25x</button>
+              <button type="button" data-speed="1.5" class="custom-dropdown-option w-full text-left px-2.5 py-1.5 text-xs font-mono">1.5x</button>
+              <button type="button" data-speed="2.0" class="custom-dropdown-option w-full text-left px-2.5 py-1.5 text-xs font-mono">2.0x</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Som ao folhear -->
+        <button id="sound-toggle-btn" class="h-8 sm:h-9 px-1.5 sm:px-2.5 rounded-lg bg-slate-800 gold-hover text-slate-300 transition-all-custom inline-flex items-center justify-center gap-1 sm:gap-1.5 shrink-0" title="Som ao folhear página">
+          <i class="fa-solid fa-file-lines text-amber-400 text-xs"></i>
+          <i id="sound-icon" class="fa-solid fa-volume-high text-xs"></i>
+        </button>
+
+        <!-- Player de Trilha Sonora do Capítulo -->
+        <div class="h-8 sm:h-9 flex items-center bg-slate-800 border border-amber-500/40 rounded-lg px-1.5 sm:px-2 gap-1 sm:gap-2 shrink-0">
+          <i class="fa-solid fa-music text-amber-400 text-xs"></i>
+          <span id="bgm-title" class="text-[11px] text-slate-300 truncate max-w-[125px] hidden md:inline">Cap. 1 (1-10)</span>
+          <button id="bgm-play-pause-btn" class="w-6 h-6 rounded gold-gradient-btn inline-flex items-center justify-center text-[10px] sm:text-xs" title="Play/Pause Trilha Sonora">
+            <i class="fa-solid fa-pause" id="bgm-icon"></i>
+          </button>
+          <input type="range" id="bgm-volume-slider" min="0" max="1" step="0.05" value="0.45" class="w-10 sm:w-16 accent-amber-400 h-1.5 cursor-pointer hidden sm:block" title="Volume da Trilha Sonora">
+        </div>
+
+        <!-- Guia -->
+        <button id="info-btn" class="h-8 w-7 sm:h-9 sm:w-9 rounded-lg bg-slate-800 gold-hover text-amber-400 border border-amber-500/40 transition-all-custom inline-flex items-center justify-center shrink-0" title="Guia de Funcionalidades e Atalhos">
+          <i class="fa-solid fa-circle-info text-xs sm:text-sm"></i>
+        </button>
+
+        <!-- Tela Cheia -->
+        <button id="fullscreen-btn" class="h-8 w-7 sm:h-9 sm:w-9 rounded-lg bg-slate-800 gold-hover text-slate-300 transition-all-custom inline-flex items-center justify-center shrink-0" title="Tela Cheia">
+          <i class="fa-solid fa-expand text-xs sm:text-sm"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MODAL DE SELEÇÃO DE CAPÍTULOS (PRÉ-CONFIGURADO) -->
+  <div id="chapters-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+    <div class="glass-panel w-full max-w-lg max-h-[85vh] rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-amber-500/40">
+      <div class="px-5 py-3.5 bg-slate-900 border-b border-slate-700/80 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg gold-gradient-btn flex items-center justify-center text-sm">
+            <i class="fa-solid fa-bookmark"></i>
+          </div>
+          <div>
+            <h2 class="font-bold text-sm sm:text-base text-amber-400">Selecionar Capítulo</h2>
+            <p id="active-chapter-subtitle" class="text-[11px] text-slate-400">Escolha uma seção para ir direto à página</p>
+          </div>
+        </div>
+        <button id="close-chapters-modal" class="p-2 rounded-lg bg-slate-800 gold-hover text-slate-300 transition-colors" title="Fechar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="chapters-list-container" class="flex-1 overflow-y-auto p-4 space-y-2">
+        <!-- ÁREA PRÉ-CONFIGURADA DE CAPÍTULOS: Sinta-se livre para editar, remover ou colar novas linhas abaixo -->
+        <button type="button" data-page="1" class="chapter-option-btn w-full text-left p-3 rounded-xl bg-slate-900/90 gold-hover border border-slate-700/60 flex items-center justify-between gap-2 transition-all">
+          <span class="text-xs sm:text-sm font-medium text-white flex items-center gap-2 min-w-0">
+            <span class="truncate">1. Capa / Introdução</span>
+            <span class="chapter-current-tag hidden shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-400 text-black">ATUAL</span>
+          </span>
+          <span class="chapter-badge text-xs font-mono text-amber-400 bg-slate-800 px-2 py-1 rounded shrink-0">Pág. 1</span>
+        </button>
+
+        <button type="button" data-page="5" class="chapter-option-btn w-full text-left p-3 rounded-xl bg-slate-900/90 gold-hover border border-slate-700/60 flex items-center justify-between gap-2 transition-all">
+          <span class="text-xs sm:text-sm font-medium text-white flex items-center gap-2 min-w-0">
+            <span class="truncate">2. Solicitação de Transporte</span>
+            <span class="chapter-current-tag hidden shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-400 text-black">ATUAL</span>
+          </span>
+          <span class="chapter-badge text-xs font-mono text-amber-400 bg-slate-800 px-2 py-1 rounded shrink-0">Pág. 5</span>
+        </button>
+
+        <button type="button" data-page="10" class="chapter-option-btn w-full text-left p-3 rounded-xl bg-slate-900/90 gold-hover border border-slate-700/60 flex items-center justify-between gap-2 transition-all">
+          <span class="text-xs sm:text-sm font-medium text-white flex items-center gap-2 min-w-0">
+            <span class="truncate">3. Fluxo de Aprovação</span>
+            <span class="chapter-current-tag hidden shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-400 text-black">ATUAL</span>
+          </span>
+          <span class="chapter-badge text-xs font-mono text-amber-400 bg-slate-800 px-2 py-1 rounded shrink-0">Pág. 10</span>
+        </button>
+
+        <!-- EXEMPLO DE COMO COLAR NOVAS LINHAS ADICIONAIS ABAIXO:
+        <button type="button" data-page="15" class="chapter-option-btn w-full text-left p-3 rounded-xl bg-slate-900/90 gold-hover border border-slate-700/60 flex items-center justify-between gap-2 transition-all">
+          <span class="text-xs sm:text-sm font-medium text-white flex items-center gap-2 min-w-0">
+            <span class="truncate">4. Nome do Seu Novo Capítulo</span>
+            <span class="chapter-current-tag hidden shrink-0 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-400 text-black">ATUAL</span>
+          </span>
+          <span class="chapter-badge text-xs font-mono text-amber-400 bg-slate-800 px-2 py-1 rounded shrink-0">Pág. 15</span>
+        </button>
+        -->
+      </div>
+
+      <div class="px-5 py-3 bg-slate-900 border-t border-slate-700/80 flex justify-end">
+        <button id="ok-chapters-modal" class="px-4 py-1.5 rounded-lg gold-gradient-btn text-xs sm:text-sm">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST DE RETOMAR LEITURA -->
+  <div id="resume-toast" class="hidden fixed top-14 sm:top-16 left-1/2 -translate-x-1/2 z-50 glass-panel border-amber-500/50 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl shadow-2xl flex items-center gap-2 sm:gap-3 text-xs sm:text-sm w-[92vw] sm:w-auto justify-between sm:justify-start">
+    <div class="flex items-center gap-2 min-w-0">
+      <i class="fa-solid fa-bookmark text-amber-400 shrink-0"></i>
+      <span id="resume-toast-text" class="truncate">Continuando da página 1</span>
+    </div>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button id="resume-restart-btn" class="px-2 py-0.5 rounded gold-hover text-amber-400 underline font-medium">Início</button>
+      <button id="resume-close-btn" class="p-1 rounded gold-hover text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </div>
+
+  <!-- MENU FLUTUANTE DE SELEÇÃO DE TEXTO -->
+  <div id="selection-popover" class="hidden fixed z-50 glass-panel border border-amber-500/50 rounded-xl shadow-2xl p-1 sm:p-1.5 flex items-center gap-1 transform -translate-x-1/2 max-w-[95vw]">
+    <button id="sel-tts-btn" class="h-7 px-2 sm:px-2.5 rounded-lg gold-hover text-xs font-medium text-white inline-flex items-center justify-center gap-1 sm:gap-1.5 transition-colors" title="Ouvir trecho selecionado">
+      <i class="fa-solid fa-volume-high text-amber-400"></i> <span>Ouvir</span>
+    </button>
+    <button id="sel-tts-stop-btn" class="hidden h-7 px-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-xs font-medium text-white inline-flex items-center justify-center gap-1 transition-colors" title="Parar áudio do trecho">
+      <i class="fa-solid fa-stop"></i>
+    </button>
+
+    <div class="relative flex items-center" id="sel-speed-dropdown-wrapper">
+      <button id="sel-tts-speed-btn" class="h-7 bg-slate-900 gold-hover text-amber-400 font-mono text-xs rounded px-1.5 sm:px-2 border border-amber-500/40 inline-flex items-center justify-center gap-1" title="Velocidade da fala">
+        <span id="sel-tts-speed-label">1.0x</span>
+        <i class="fa-solid fa-chevron-down text-[9px]"></i>
+      </button>
+      <div id="sel-tts-speed-menu" class="hidden absolute left-0 top-full mt-1.5 w-20 bg-slate-900 border border-amber-500/50 rounded-lg shadow-2xl overflow-hidden z-50">
+        <button type="button" data-speed="0.75" class="custom-dropdown-option w-full text-left px-2.5 py-1.5 text-xs font-mono">0.75x</button>
+        <button type="button" data-speed="1.0" class="custom-dropdown-option active-option w-full text-left px-2.5 py-1.5 text-xs font-mono">1.0x</button>
+        <button type="button" data-speed="1.25" class="custom-dropdown-option w-full text-left px-2.5 py-1.5 text-xs font-mono">1.25x</button>
+        <button type="button" data-speed="1.5" class="custom-dropdown-option w-full text-left px-2.5 py-1.5 text-xs font-mono">1.5x</button>
+        <button type="button" data-speed="2.0" class="custom-dropdown-option w-full text-left px-2.5 py-1.5 text-xs font-mono">2.0x</button>
+      </div>
+    </div>
+
+    <div class="w-px h-4 bg-slate-700"></div>
+    <button id="sel-google-btn" class="h-7 px-2 sm:px-2.5 rounded-lg gold-hover text-xs font-medium text-white inline-flex items-center justify-center gap-1 sm:gap-1.5 transition-colors" title="Pesquisar no Google">
+      <i class="fa-brands fa-google text-amber-400"></i> <span>Google</span>
+    </button>
+    <div class="w-px h-4 bg-slate-700"></div>
+    <button id="sel-share-btn" class="h-7 px-2 sm:px-2.5 rounded-lg gold-hover text-xs font-medium text-white inline-flex items-center justify-center gap-1 sm:gap-1.5 transition-colors" title="Compartilhar ou copiar trecho">
+      <i class="fa-solid fa-share-nodes text-emerald-400"></i> <span class="hidden sm:inline">Compartilhar</span>
+    </button>
+    <div class="w-px h-4 bg-slate-700"></div>
+    <button id="sel-hand-btn" type="button" class="h-7 px-2 sm:px-2.5 rounded-lg gold-hover text-xs font-medium text-amber-400 inline-flex items-center justify-center gap-1 transition-colors" title="Alternar para Modo Mão (Arrastar Página)">
+      <i id="sel-hand-icon" class="fa-solid fa-hand"></i>
+      <span id="sel-hand-label" class="hidden md:inline">Mão</span>
+    </button>
+  </div>
+
+  <!-- MAIN VIEWPORT AREA -->
+  <main class="flex-1 relative flex items-center justify-center p-1 sm:p-4 overflow-hidden">
+    
+    <!-- PAINEL LATERAL DE PESQUISA -->
+    <aside id="search-sidebar" class="hidden absolute top-0 right-0 h-full w-80 max-w-[90vw] glass-panel border-l border-slate-700/70 z-40 flex flex-col shadow-2xl">
+      <div class="p-3 border-b border-slate-700/70 flex items-center justify-between">
+        <h3 class="font-semibold text-sm flex items-center gap-2">
+          <i class="fa-solid fa-magnifying-glass text-amber-400"></i> Pesquisar no Livro
+        </h3>
+        <button id="close-search-btn" class="p-1.5 rounded gold-hover text-slate-400">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="p-3 border-b border-slate-700/70">
+        <div class="relative">
+          <input type="text" id="search-input" placeholder="Digite uma palavra ou frase..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-9 py-2 text-sm text-white focus:outline-none focus:border-amber-500">
+          <button id="search-exec-btn" class="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded gold-hover text-amber-400">
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+        <p id="search-stats" class="text-xs text-slate-400 mt-1.5">Digite para buscar em todas as páginas</p>
+      </div>
+      <div id="search-results" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+    </aside>
+
+    <!-- LOADING STATE -->
+    <div id="loading-section" class="flex flex-col items-center justify-center z-20 text-center glass-panel p-6 sm:p-8 rounded-2xl shadow-2xl mx-4">
+      <div class="spinner mb-4"></div>
+      <h3 class="text-base sm:text-lg font-semibold mb-1">Carregando o Livro...</h3>
+      <p id="loading-progress" class="text-xs sm:text-sm text-slate-400">Baixando PDF predefinido e preparando páginas</p>
+    </div>
+
+    <!-- FLIPBOOK CONTAINER -->
+    <div id="flipbook-section" class="hidden w-full h-full flex flex-col items-center justify-center relative">
+      <!-- Botões Flutuantes Retangulares Verticais Mais Próximos da Lateral -->
+      <button id="prev-page-btn" class="vertical-nav-btn absolute left-1 md:left-3 z-30 bg-slate-900/90 gold-hover text-white backdrop-blur-sm transition-all-custom shadow-2xl inline-flex items-center justify-center disabled:opacity-20 disabled:hover:scale-100 disabled:hover:bg-slate-900" title="Página Anterior">
+        <i class="fa-solid fa-chevron-left text-sm sm:text-base"></i>
+      </button>
+
+      <button id="next-page-btn" class="vertical-nav-btn absolute right-1 md:right-3 z-30 bg-slate-900/90 gold-hover text-white backdrop-blur-sm transition-all-custom shadow-2xl inline-flex items-center justify-center disabled:opacity-20 disabled:hover:scale-100 disabled:hover:bg-slate-900" title="Próxima Página">
+        <i class="fa-solid fa-chevron-right text-sm sm:text-base"></i>
+      </button>
+
+      <!-- Viewport de Zoom e Pan -->
+      <div id="viewport-pan-area" class="w-full h-full flex items-center justify-center overflow-hidden relative">
+        <div id="flipbook-wrapper">
+          <div id="flipbook"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL DE INFORMAÇÕES E FUNCIONALIDADES -->
+  <div id="info-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+    <div class="glass-panel w-full max-w-2xl max-h-[85vh] rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-amber-500/40">
+      <div class="px-5 py-3.5 bg-slate-900 border-b border-slate-700/80 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg gold-gradient-btn flex items-center justify-center text-sm">
+            <i class="fa-solid fa-circle-info"></i>
+          </div>
+          <div>
+            <h2 class="font-bold text-sm sm:text-base text-amber-400">Guia de Funcionalidades</h2>
+            <p class="text-[11px] text-slate-400">Recursos interativos e atalhos do Livro Virtual</p>
+          </div>
+        </div>
+        <button id="close-info-modal" class="p-2 rounded-lg bg-slate-800 gold-hover text-slate-300 transition-colors" title="Fechar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-5 space-y-4 text-xs sm:text-sm text-slate-200">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <!-- Card 1: Navegação e Folhear 3D -->
+          <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/70 space-y-1.5">
+            <div class="font-semibold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-book-open"></i> Navegação e Folhear 3D
+            </div>
+            <p class="text-slate-300 text-xs leading-relaxed">
+              Use os botões verticais laterais, o seletor de páginas no rodapé, os botões de início/fim (<i class="fa-solid fa-backward-step text-amber-400"></i> <i class="fa-solid fa-forward-step text-amber-400"></i>) ou as teclas <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">←</kbd> <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">→</kbd>, <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">Home</kbd> e <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">End</kbd>.
+            </p>
+          </div>
+
+          <!-- Card 2: Índice de Capítulos -->
+          <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/70 space-y-1.5">
+            <div class="font-semibold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-bookmark"></i> Índice de Capítulos
+            </div>
+            <p class="text-slate-300 text-xs leading-relaxed">
+              Clique em <strong>Capítulos</strong> na barra superior para abrir o menu rápido de seções, ver o capítulo ativo destacado e saltar direto para a página inicial de cada tema.
+            </p>
+          </div>
+
+          <!-- Card 3: Seleção Interativa -->
+          <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/70 space-y-1.5">
+            <div class="font-semibold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-highlighter"></i> Seleção Interativa
+            </div>
+            <p class="text-slate-300 text-xs leading-relaxed">
+              Selecione qualquer trecho de texto na página para abrir o menu flutuante: <strong>Ouvir</strong> o trecho, pesquisar no <strong>Google</strong>, <strong>Compartilhar</strong> ou alternar para o <strong>Modo Mão</strong>.
+            </p>
+          </div>
+
+          <!-- Card 4: Narração por Voz (TTS) -->
+          <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/70 space-y-1.5">
+            <div class="font-semibold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-headphones"></i> Narração por Voz (TTS)
+            </div>
+            <p class="text-slate-300 text-xs leading-relaxed">
+              Clique em <strong>Ouvir</strong> no topo para narrar as páginas abertas. Altere a velocidade (<code class="text-amber-300">0.75x</code> a <code class="text-amber-300">2.0x</code>) em tempo real sem perder o ponto da leitura.
+            </p>
+          </div>
+
+          <!-- Card 5: Trilha Sonora por Capítulo -->
+          <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/70 space-y-1.5">
+            <div class="font-semibold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-music"></i> Trilha Sonora por Capítulo
+            </div>
+            <p class="text-slate-300 text-xs leading-relaxed">
+              A música de fundo muda automaticamente conforme você avança pelos capítulos, possui controle próprio de volume/pausa e reduz o som suavemente durante a narração.
+            </p>
+          </div>
+
+          <!-- Card 6: Zoom e Modo Mão -->
+          <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/70 space-y-1.5">
+            <div class="font-semibold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-hand"></i> Zoom e Modo Mão
+            </div>
+            <p class="text-slate-300 text-xs leading-relaxed">
+              Use a roda do mouse ou os botões <code class="text-amber-300">+ / -</code> para ampliar até 300%. No zoom, o <strong>Modo Mão</strong> (<kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">M</kbd>) permite arrastar a página; pressione <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 text-[10px]">S</kbd> para voltar à seleção de texto.
+            </p>
+          </div>
+
+          <!-- Card 7: Pesquisa no Livro -->
+          <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/70 space-y-1.5">
+            <div class="font-semibold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-magnifying-glass"></i> Pesquisa no Livro
+            </div>
+            <p class="text-slate-300 text-xs leading-relaxed">
+              Clique na lupa (<i class="fa-solid fa-magnifying-glass text-amber-400"></i>) no topo para buscar palavras ou frases em todas as páginas com prévia destacada e salto direto ao resultado.
+            </p>
+          </div>
+
+          <!-- Card 8: Leitura Noturna, Som e Marcador -->
+          <div class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-700/70 space-y-1.5">
+            <div class="font-semibold text-amber-400 flex items-center gap-2">
+              <i class="fa-solid fa-circle-half-stroke"></i> Leitura Noturna, Áudio e Marcador
+            </div>
+            <p class="text-slate-300 text-xs leading-relaxed">
+              Inverta as cores das páginas para leitura noturna, ative/desative o som ao folhear (<i class="fa-solid fa-file-lines text-amber-400"></i>), use tela cheia e retome automaticamente da última página lida.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3 bg-slate-900 border-t border-slate-700/80 flex justify-end">
+        <button id="ok-info-modal" class="px-4 py-1.5 rounded-lg gold-gradient-btn text-xs sm:text-sm">Entendi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE PESQUISA GOOGLE -->
+  <div id="google-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6">
+    <div class="glass-panel w-full max-w-4xl h-[82vh] rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-slate-700">
+      <div class="px-4 py-3 bg-slate-900 border-b border-slate-700 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <i class="fa-brands fa-google text-amber-400"></i>
+          <span class="font-semibold text-sm truncate" id="google-modal-title">Pesquisa Google</span>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a id="google-external-link" href="#" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-slate-800 gold-hover text-xs text-amber-300 flex items-center gap-1">
+            <span>Abrir em nova aba</span>
+            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+          </a>
+          <button id="close-google-modal" class="p-1.5 rounded-lg bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white transition-colors">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+      <div class="flex-1 bg-white relative">
+        <iframe id="google-search-iframe" class="w-full h-full border-0" src="about:blank"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM CONTROL BAR -->
+  <footer id="bottom-controls" class="glass-panel z-40 w-full max-w-full px-1.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-1 sm:gap-2 shadow-lg">
+    
+    <div class="flex items-center space-x-1 sm:space-x-1.5 min-w-0 shrink">
+      <button id="first-page-btn" class="h-8 w-7 sm:w-8 rounded-lg bg-slate-800 gold-hover text-slate-300 text-xs transition-all-custom inline-flex items-center justify-center shrink-0" title="Início (Capa)">
+        <i class="fa-solid fa-backward-step"></i>
+      </button>
+      <button id="footer-prev-btn" class="h-8 w-8 rounded-lg bg-slate-800 gold-hover text-slate-300 text-xs transition-all-custom hidden sm:inline-flex items-center justify-center shrink-0" title="Página Anterior">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+
+      <!-- Lista Customizada de Páginas -->
+      <div class="h-8 relative flex items-center bg-slate-900/90 border border-amber-500/40 rounded-lg px-1 sm:px-1.5 min-w-0" id="page-dropdown-wrapper">
+        <button id="page-list-btn" type="button" class="h-6 gold-hover text-amber-400 font-medium text-[11px] sm:text-sm rounded px-1 sm:px-1.5 inline-flex items-center justify-center gap-1 cursor-pointer min-w-0" title="Escolher página na lista">
+          <span id="page-list-label" class="truncate">1 (Capa)</span>
+          <i class="fa-solid fa-chevron-up text-[8px] sm:text-[9px] shrink-0"></i>
+        </button>
+        <span class="text-slate-500 text-[11px] sm:text-xs mx-0.5 shrink-0">/</span>
+        <span id="page-total-count" class="text-slate-400 text-[11px] sm:text-sm font-medium pr-0.5 shrink-0">0</span>
+
+        <div id="page-list-menu" class="hidden absolute bottom-full left-0 mb-2 w-40 max-h-60 sm:max-h-64 overflow-y-auto bg-slate-900 border border-amber-500/50 rounded-xl shadow-2xl z-50 py-1">
+        </div>
+      </div>
+
+      <button id="footer-next-btn" class="h-8 w-8 rounded-lg bg-slate-800 gold-hover text-slate-300 text-xs transition-all-custom hidden sm:inline-flex items-center justify-center shrink-0" title="Próxima Página">
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
+      <button id="last-page-btn" class="h-8 w-7 sm:w-8 rounded-lg bg-slate-800 gold-hover text-slate-300 text-xs transition-all-custom inline-flex items-center justify-center shrink-0" title="Fim (Última página)">
+        <i class="fa-solid fa-forward-step"></i>
+      </button>
+    </div>
+
+    <div class="text-xs text-slate-400 font-medium hidden lg:flex items-center gap-2 truncate max-w-xs">
+      <span id="spread-indicator">Página 1</span>
+    </div>
+
+    <div class="flex items-center space-x-1 sm:space-x-1.5 shrink-0">
+      <button id="hand-tool-btn" type="button" class="h-8 w-7 sm:w-auto sm:px-2.5 rounded-lg bg-slate-800 gold-hover text-slate-300 text-xs font-medium transition-all-custom inline-flex items-center justify-center gap-1.5 border border-transparent shrink-0" title="Modo Mão (Atalho: M)">
+        <i class="fa-solid fa-hand"></i>
+        <span class="hidden sm:inline">Modo Mão</span>
+      </button>
+
+      <button id="select-tool-btn" type="button" class="h-8 w-7 sm:w-auto sm:px-2.5 rounded-lg gold-gradient-btn text-xs font-medium transition-all-custom inline-flex items-center justify-center gap-1.5 shrink-0" title="Modo Seleção de Texto (Atalho: S)">
+        <i class="fa-solid fa-i-cursor"></i>
+        <span class="hidden sm:inline">Modo Seleção</span>
+      </button>
+
+      <div class="w-px h-5 bg-slate-700 mx-0.5 hidden sm:block"></div>
+
+      <button id="zoom-out-btn" class="h-8 w-7 sm:w-8 rounded-lg bg-slate-800 gold-hover text-slate-300 text-xs transition-all-custom inline-flex items-center justify-center shrink-0" title="Reduzir Zoom">
+        <i class="fa-solid fa-magnifying-glass-minus"></i>
+      </button>
+      <span id="zoom-level" class="h-8 inline-flex items-center justify-center text-[10px] sm:text-xs text-slate-300 w-8 sm:w-11 text-center font-mono shrink-0">100%</span>
+      <button id="zoom-in-btn" class="h-8 w-7 sm:w-8 rounded-lg bg-slate-800 gold-hover text-slate-300 text-xs transition-all-custom inline-flex items-center justify-center shrink-0" title="Aumentar Zoom">
+        <i class="fa-solid fa-magnifying-glass-plus"></i>
+      </button>
+      <button id="zoom-reset-btn" class="h-8 w-7 sm:w-8 rounded-lg bg-slate-800 gold-hover text-slate-300 text-xs transition-all-custom inline-flex items-center justify-center shrink-0" title="Resetar Zoom e Posição">
+        <i class="fa-solid fa-rotate-left"></i>
+      </button>
+    </div>
+
+  </footer>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    const CHAPTER_SOUNDTRACKS = [
+      { startPage: 1,  endPage: 10,  title: "Cap. 1 (Pág 1-10)",   url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
+      { startPage: 11, endPage: 20,  title: "Cap. 2 (Pág 11-20)",  url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
+      { startPage: 21, endPage: 30,  title: "Cap. 3 (Pág 21-30)",  url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
+      { startPage: 31, endPage: 40,  title: "Cap. 4 (Pág 31-40)",  url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
+      { startPage: 41, endPage: 50,  title: "Cap. 5 (Pág 41-50)",  url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" },
+      { startPage: 51, endPage: 60,  title: "Cap. 6 (Pág 51-60)",  url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3" },
+      { startPage: 61, endPage: 70,  title: "Cap. 7 (Pág 61-70)",  url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3" },
+      { startPage: 71, endPage: 80,  title: "Cap. 8 (Pág 71-80)",  url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" },
+      { startPage: 81, endPage: 90,  title: "Cap. 9 (Pág 81-90)",  url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3" },
+      { startPage: 91, endPage: 100, title: "Cap. 10 (Pág 91-100)", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3" }
+    ];
+
+    const PREDEFINED_PDF_URL = "https://robertdelima.github.io/Manual-Solicita%C3%A7%C3%A3o-Transporte.pdf";
+    const PREDEFINED_BOOK_TITLE = "Meu_Livro_Interativo.pdf";
+
+    function isMobileSinglePageMode() {
+      return window.innerWidth < 768;
+    }
+
+    let bgmAudio = new Audio();
+    bgmAudio.loop = true;
+    let bgmIsPlaying = true;
+    let currentBgmUrl = '';
+    let userPausedBgm = false;
+
+    const bgmPlayPauseBtn = document.getElementById('bgm-play-pause-btn');
+    const bgmIcon = document.getElementById('bgm-icon');
+    const bgmTitle = document.getElementById('bgm-title');
+    const bgmVolumeSlider = document.getElementById('bgm-volume-slider');
+
+    bgmAudio.volume = parseFloat(bgmVolumeSlider.value);
+
+    function updateBgmForPage(pageNum) {
+      const match = CHAPTER_SOUNDTRACKS.find(ch => pageNum >= ch.startPage && pageNum <= ch.endPage);
+      if (match) {
+        bgmTitle.textContent = match.title;
+        if (currentBgmUrl !== match.url) {
+          currentBgmUrl = match.url;
+          bgmAudio.src = currentBgmUrl;
+          bgmAudio.load();
+          if (!userPausedBgm) {
+            bgmAudio.play().then(() => {
+              bgmIsPlaying = true;
+              bgmIcon.className = 'fa-solid fa-pause';
+            }).catch(() => {
+              bgmIsPlaying = false;
+              bgmIcon.className = 'fa-solid fa-play';
+            });
+          }
+        }
+      }
+    }
+
+    document.addEventListener('click', () => {
+      if (!userPausedBgm && bgmAudio.paused && currentBgmUrl) {
+        bgmAudio.play().then(() => {
+          bgmIsPlaying = true;
+          bgmIcon.className = 'fa-solid fa-pause';
+        }).catch(() => {});
+      }
+    }, { once: true });
+
+    bgmPlayPauseBtn.addEventListener('click', () => {
+      if (bgmAudio.paused) {
+        userPausedBgm = false;
+        bgmAudio.play().then(() => {
+          bgmIsPlaying = true;
+          bgmIcon.className = 'fa-solid fa-pause';
+        }).catch(() => {});
+      } else {
+        userPausedBgm = true;
+        bgmAudio.pause();
+        bgmIsPlaying = false;
+        bgmIcon.className = 'fa-solid fa-play';
+      }
+    });
+
+    bgmVolumeSlider.addEventListener('input', (e) => {
+      const targetVol = parseFloat(e.target.value);
+      const isNarrating = synth && (synth.speaking || synth.pending);
+      bgmAudio.volume = isNarrating ? Math.max(0.05, targetVol * 0.25) : targetVol;
+    });
+
+    function applyAudioDucking(isNarrating) {
+      const baseVol = parseFloat(bgmVolumeSlider.value) || 0.45;
+      bgmAudio.volume = isNarrating ? Math.max(0.05, baseVol * 0.25) : baseVol;
+    }
+
+    class Custom3DFlipbook {
+      constructor(container, options = {}) {
+        this.container = container;
+        this.pageWidth = options.width || 400;
+        this.pageHeight = options.height || 560;
+        this.flippingTime = options.flippingTime || 650;
+        this.singlePageMode = !!options.singlePageMode;
+        this.pages = [];
+        this.totalPages = 0;
+        this.currentSpread = 0;
+        this.maxSpread = 0;
+        this.isAnimating = false;
+        this.animationFrameId = null;
+
+        this.listeners = { flip: [] };
+        this._buildDOM();
+      }
+
+      on(event, callback) {
+        if (this.listeners[event]) this.listeners[event].push(callback);
+      }
+
+      _emit(event, data) {
+        if (this.listeners[event]) this.listeners[event].forEach(cb => cb({ data }));
+      }
+
+      _buildDOM() {
+        this.container.innerHTML = '';
+        this.stage = document.createElement('div');
+        this.stage.className = 'custom-book-stage';
+        this.stage.style.width = `${this.pageWidth}px`;
+        this.stage.style.height = `${this.pageHeight}px`;
+
+        this.world = document.createElement('div');
+        this.world.className = 'custom-book-world';
+
+        this.leftSlot = document.createElement('div');
+        this.leftSlot.className = 'book-slot book-slot-left';
+        this.leftSlot.style.width = `${this.pageWidth}px`;
+
+        this.rightSlot = document.createElement('div');
+        this.rightSlot.className = 'book-slot book-slot-right';
+        this.rightSlot.style.width = `${this.pageWidth}px`;
+
+        this.leftSpine = document.createElement('div');
+        this.leftSpine.className = 'spine-crease-left';
+
+        this.rightSpine = document.createElement('div');
+        this.rightSpine.className = 'spine-crease-right';
+
+        this.leftUnderShadow = document.createElement('div');
+        this.leftUnderShadow.className = 'under-page-shadow';
+
+        this.rightUnderShadow = document.createElement('div');
+        this.rightUnderShadow.className = 'under-page-shadow';
+
+        this.turningSheet = document.createElement('div');
+        this.turningSheet.className = 'turning-sheet hidden';
+        this.turningSheet.style.width = `${this.pageWidth}px`;
+
+        this.sheetFront = document.createElement('div');
+        this.sheetFront.className = 'sheet-face sheet-face-front';
+
+        this.sheetBack = document.createElement('div');
+        this.sheetBack.className = 'sheet-face sheet-face-back';
+
+        this.sheetFrontLight = document.createElement('div');
+        this.sheetFrontLight.className = 'sheet-fold-lighting';
+
+        this.sheetBackLight = document.createElement('div');
+        this.sheetBackLight.className = 'sheet-fold-lighting';
+
+        this.turningSheet.appendChild(this.sheetFront);
+        this.turningSheet.appendChild(this.sheetBack);
+
+        this.world.appendChild(this.leftSlot);
+        this.world.appendChild(this.rightSlot);
+        this.world.appendChild(this.turningSheet);
+        this.stage.appendChild(this.world);
+        this.container.appendChild(this.stage);
+      }
+
+      loadFromHTML(pageElements, startPageIndex = 0) {
+        this.pages = Array.from(pageElements);
+        this.totalPages = this.pages.length;
+
+        if (this.singlePageMode) {
+          this.maxSpread = Math.max(0, this.totalPages - 1);
+        } else {
+          this.maxSpread = this.totalPages <= 1 ? 0 : Math.floor(this.totalPages / 2);
+        }
+
+        const targetSpread = this._pageIndexToSpread(startPageIndex);
+        this.currentSpread = Math.max(0, Math.min(this.maxSpread, targetSpread));
+        this._renderStaticSpread(this.currentSpread);
+      }
+
+      _pageIndexToSpread(pageIndex) {
+        if (this.singlePageMode) {
+          return Math.max(0, Math.min(this.totalPages - 1, pageIndex));
+        }
+        if (pageIndex <= 0) return 0;
+        return Math.ceil(pageIndex / 2);
+      }
+
+      getCurrentPageIndex() {
+        if (this.singlePageMode) {
+          return Math.max(0, Math.min(this.totalPages - 1, this.currentSpread));
+        }
+        if (this.currentSpread === 0) return 0;
+        const leftIdx = this.currentSpread * 2 - 1;
+        return Math.min(leftIdx, this.totalPages - 1);
+      }
+
+      _getSpreadPages(spread) {
+        if (this.singlePageMode) {
+          return { left: null, right: spread < this.totalPages ? spread : null };
+        }
+        if (spread === 0) return { left: null, right: 0 };
+        const leftIdx = spread * 2 - 1;
+        const rightIdx = spread * 2;
+        return {
+          left: leftIdx < this.totalPages ? leftIdx : null,
+          right: rightIdx < this.totalPages ? rightIdx : null
+        };
+      }
+
+      _mountPageInto(targetEl, pageIdx, extras = []) {
+        targetEl.innerHTML = '';
+        if (pageIdx !== null && this.pages[pageIdx]) {
+          targetEl.appendChild(this.pages[pageIdx]);
+        }
+        extras.forEach(el => targetEl.appendChild(el));
+      }
+
+      _renderStaticSpread(spread) {
+        this.turningSheet.classList.add('hidden');
+        this.leftUnderShadow.style.opacity = '0';
+        this.rightUnderShadow.style.opacity = '0';
+
+        if (this.singlePageMode) {
+          this.stage.style.width = `${this.pageWidth}px`;
+          this.leftSlot.classList.add('hidden');
+          this.rightSlot.classList.remove('hidden');
+          this.rightSlot.className = 'book-slot book-slot-single';
+          this.rightSlot.style.left = '0px';
+          this.rightSlot.style.right = 'auto';
+
+          this._mountPageInto(this.rightSlot, spread, [this.rightSpine, this.rightUnderShadow]);
+          return;
+        }
+
+        const { left, right } = this._getSpreadPages(spread);
+        const isSingleCover = (left === null && right !== null);
+        const isSingleBack = (left !== null && right === null);
+
+        if (isSingleCover) {
+          this.stage.style.width = `${this.pageWidth}px`;
+          this.leftSlot.classList.add('hidden');
+          this.rightSlot.classList.remove('hidden');
+          this.rightSlot.className = 'book-slot book-slot-single';
+          this.rightSlot.style.left = '0px';
+          this.rightSlot.style.right = 'auto';
+
+          this._mountPageInto(this.rightSlot, right, [this.rightSpine, this.rightUnderShadow]);
+        } else if (isSingleBack) {
+          this.stage.style.width = `${this.pageWidth}px`;
+          this.rightSlot.classList.add('hidden');
+          this.leftSlot.classList.remove('hidden');
+          this.leftSlot.className = 'book-slot book-slot-single';
+          this.leftSlot.style.left = '0px';
+
+          this._mountPageInto(this.leftSlot, left, [this.leftSpine, this.leftUnderShadow]);
+        } else {
+          this.stage.style.width = `${this.pageWidth * 2}px`;
+          this.leftSlot.classList.remove('hidden');
+          this.leftSlot.className = 'book-slot book-slot-left';
+          this.leftSlot.style.left = '0px';
+
+          this.rightSlot.classList.remove('hidden');
+          this.rightSlot.className = 'book-slot book-slot-right';
+          this.rightSlot.style.left = 'auto';
+          this.rightSlot.style.right = '0px';
+
+          this._mountPageInto(this.leftSlot, left, [this.leftSpine, this.leftUnderShadow]);
+          this._mountPageInto(this.rightSlot, right, [this.rightSpine, this.rightUnderShadow]);
+        }
+      }
+
+      _prepareTurn(direction, targetSpread) {
+        if (this.singlePageMode) {
+          this.stage.style.width = `${this.pageWidth}px`;
+          this.leftSlot.classList.add('hidden');
+          this.rightSlot.classList.remove('hidden');
+          this.rightSlot.className = 'book-slot book-slot-single';
+          this.rightSlot.style.left = '0px';
+          this.rightSlot.style.right = 'auto';
+
+          this.turningSheet.style.left = '0px';
+          this.turningSheet.style.transformOrigin = 'left center';
+
+          if (direction === 'next') {
+            this._mountPageInto(this.rightSlot, targetSpread, [this.rightSpine, this.rightUnderShadow]);
+            this._mountPageInto(this.sheetFront, this.currentSpread, [this.rightSpine.cloneNode(), this.sheetFrontLight]);
+            this._mountPageInto(this.sheetBack, this.currentSpread, [this.leftSpine.cloneNode(), this.sheetBackLight]);
+          } else {
+            this._mountPageInto(this.rightSlot, this.currentSpread, [this.rightSpine, this.rightUnderShadow]);
+            this._mountPageInto(this.sheetFront, targetSpread, [this.rightSpine.cloneNode(), this.sheetFrontLight]);
+            this._mountPageInto(this.sheetBack, targetSpread, [this.leftSpine.cloneNode(), this.sheetBackLight]);
+          }
+
+          this.turningSheet.classList.remove('hidden');
+          return;
+        }
+
+        const currentPages = this._getSpreadPages(this.currentSpread);
+        const nextPages = this._getSpreadPages(targetSpread);
+        this.stage.style.width = `${this.pageWidth * 2}px`;
+
+        if (direction === 'next') {
+          if (currentPages.left !== null) {
+            this.leftSlot.classList.remove('hidden');
+            this.leftSlot.className = 'book-slot book-slot-left';
+            this.leftSlot.style.left = '0px';
+            this._mountPageInto(this.leftSlot, currentPages.left, [this.leftSpine, this.leftUnderShadow]);
+          } else {
+            this.leftSlot.classList.add('hidden');
+          }
+
+          if (nextPages.right !== null) {
+            this.rightSlot.classList.remove('hidden');
+            this.rightSlot.className = 'book-slot book-slot-right';
+            this.rightSlot.style.left = 'auto';
+            this.rightSlot.style.right = '0px';
+            this._mountPageInto(this.rightSlot, nextPages.right, [this.rightSpine, this.rightUnderShadow]);
+          } else {
+            this.rightSlot.classList.add('hidden');
+          }
+
+          this.turningSheet.style.left = `${this.pageWidth}px`;
+          this.turningSheet.style.transformOrigin = 'left center';
+          this._mountPageInto(this.sheetFront, currentPages.right, [this.rightSpine.cloneNode(), this.sheetFrontLight]);
+          this._mountPageInto(this.sheetBack, nextPages.left, [this.leftSpine.cloneNode(), this.sheetBackLight]);
+          this.turningSheet.classList.remove('hidden');
+        } else {
+          if (currentPages.right !== null) {
+            this.rightSlot.classList.remove('hidden');
+            this.rightSlot.className = 'book-slot book-slot-right';
+            this.rightSlot.style.left = 'auto';
+            this.rightSlot.style.right = '0px';
+            this._mountPageInto(this.rightSlot, currentPages.right, [this.rightSpine, this.rightUnderShadow]);
+          } else {
+            this.rightSlot.classList.add('hidden');
+          }
+
+          if (nextPages.left !== null) {
+            this.leftSlot.classList.remove('hidden');
+            this.leftSlot.className = 'book-slot book-slot-left';
+            this.leftSlot.style.left = '0px';
+            this._mountPageInto(this.leftSlot, nextPages.left, [this.leftSpine, this.leftUnderShadow]);
+          } else {
+            this.leftSlot.classList.add('hidden');
+          }
+
+          this.turningSheet.style.left = `${this.pageWidth}px`;
+          this.turningSheet.style.transformOrigin = 'left center';
+          this._mountPageInto(this.sheetFront, nextPages.right, [this.rightSpine.cloneNode(), this.sheetFrontLight]);
+          this._mountPageInto(this.sheetBack, currentPages.left, [this.leftSpine.cloneNode(), this.sheetBackLight]);
+          this.turningSheet.classList.remove('hidden');
+        }
+      }
+
+      _applyTurnVisuals(direction, progress, tiltY = 0) {
+        const clamped = Math.max(0, Math.min(1, progress));
+        const maxAngle = this.singlePageMode ? 105 : 180;
+        const angle = direction === 'next' ? (-maxAngle * clamped) : (-maxAngle * (1 - clamped));
+        const arc = Math.sin(clamped * Math.PI);
+        const skewY = (direction === 'next' ? -1 : 1) * arc * (3.2 + tiltY * 2.5);
+        const scaleX = 1 - arc * 0.035;
+
+        this.turningSheet.style.transform = `rotateY(${angle}deg) skewY(${skewY.toFixed(2)}deg) scaleX(${scaleX.toFixed(4)})`;
+
+        const shadowStrength = arc * 0.36;
+        const highlightStrength = arc * 0.22;
+
+        if (angle > -90) {
+          this.sheetFrontLight.style.background = `linear-gradient(to right, rgba(0,0,0,${shadowStrength * 0.85}) 0%, rgba(255,255,255,${highlightStrength}) 38%, rgba(0,0,0,${shadowStrength * 0.45}) 100%)`;
+        } else {
+          this.sheetBackLight.style.background = `linear-gradient(to left, rgba(0,0,0,${shadowStrength * 0.85}) 0%, rgba(255,255,255,${highlightStrength}) 38%, rgba(0,0,0,${shadowStrength * 0.45}) 100%)`;
+        }
+      }
+
+      _animateProgress(direction, from, to, tiltY, onComplete) {
+        this.isAnimating = true;
+        const duration = Math.max(180, this.flippingTime * Math.abs(to - from));
+        const startTime = performance.now();
+
+        const step = (now) => {
+          const elapsed = now - startTime;
+          const t = Math.min(1, elapsed / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          const current = from + (to - from) * eased;
+
+          this._applyTurnVisuals(direction, current, tiltY * (1 - eased * 0.5));
+
+          if (t < 1) {
+            this.animationFrameId = requestAnimationFrame(step);
+          } else {
+            this.isAnimating = false;
+            if (onComplete) onComplete();
+          }
+        };
+        this.animationFrameId = requestAnimationFrame(step);
+      }
+
+      flipNext() {
+        if (this.isAnimating || this.currentSpread >= this.maxSpread) return;
+        const targetSpread = this.currentSpread + 1;
+        this._prepareTurn('next', targetSpread);
+        this._animateProgress('next', 0, 1, 0.15, () => {
+          this.currentSpread = targetSpread;
+          this._renderStaticSpread(this.currentSpread);
+          this._emit('flip', this.getCurrentPageIndex());
+        });
+      }
+
+      flipPrev() {
+        if (this.isAnimating || this.currentSpread <= 0) return;
+        const targetSpread = this.currentSpread - 1;
+        this._prepareTurn('prev', targetSpread);
+        this._animateProgress('prev', 0, 1, 0.15, () => {
+          this.currentSpread = targetSpread;
+          this._renderStaticSpread(this.currentSpread);
+          this._emit('flip', this.getCurrentPageIndex());
+        });
+      }
+
+      flip(pageIndex) {
+        if (this.isAnimating) return;
+        const clampedPage = Math.max(0, Math.min(this.totalPages - 1, pageIndex));
+        const targetSpread = this._pageIndexToSpread(clampedPage);
+        if (targetSpread === this.currentSpread) {
+          this._renderStaticSpread(this.currentSpread);
+          return;
+        }
+
+        const direction = targetSpread > this.currentSpread ? 'next' : 'prev';
+        this._prepareTurn(direction, targetSpread);
+        this._animateProgress(direction, 0, 1, 0.1, () => {
+          this.currentSpread = targetSpread;
+          this._renderStaticSpread(this.currentSpread);
+          this._emit('flip', this.getCurrentPageIndex());
+        });
+      }
+
+      destroy() {
+        if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
+        this.container.innerHTML = '';
+      }
+    }
+
+    let pageFlip = null;
+    let pdfDoc = null;
+    let currentPdfKey = '';
+    let isSoundEnabled = true;
+    let currentZoom = 1.0;
+    let totalPages = 0;
+    let audioCtx = null;
+    let pagesTextData = [];
+    let cachedPageElements = [];
+    let basePageAspect = { width: 400, height: 560 };
+
+    let isHandMode = false;
+    let isPanning = false;
+    let panX = 0;
+    let panY = 0;
+    let startPanX = 0;
+    let startPanY = 0;
+
+    let selectedTextCache = '';
+    const synth = window.speechSynthesis;
+    let activeSpeechText = '';
+    let activeSpeechOffset = 0;
+    let lastBoundaryCharIndex = 0;
+    let activeSpeechOnEnd = null;
+    let activeSpeechIsSelection = false;
+    let isRestartingSpeech = false;
+    let speechStartTimestamp = 0;
+    let speechCurrentRate = 1.0;
+
+    const loadingSection = document.getElementById('loading-section');
+    const loadingProgress = document.getElementById('loading-progress');
+    const flipbookSection = document.getElementById('flipbook-section');
+    const flipbookContainer = document.getElementById('flipbook');
+    const flipbookWrapper = document.getElementById('flipbook-wrapper');
+    const viewportPanArea = document.getElementById('viewport-pan-area');
+    const pdfFilename = document.getElementById('pdf-filename');
+    const bottomControls = document.getElementById('bottom-controls');
+
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+    const firstPageBtn = document.getElementById('first-page-btn');
+    const lastPageBtn = document.getElementById('last-page-btn');
+    const footerPrevBtn = document.getElementById('footer-prev-btn');
+    const footerNextBtn = document.getElementById('footer-next-btn');
+
+    const pageDropdownWrapper = document.getElementById('page-dropdown-wrapper');
+    const pageListBtn = document.getElementById('page-list-btn');
+    const pageListLabel = document.getElementById('page-list-label');
+    const pageListMenu = document.getElementById('page-list-menu');
+    const pageTotalCount = document.getElementById('page-total-count');
+    const spreadIndicator = document.getElementById('spread-indicator');
+
+    // Elementos do Modal de Capítulos + Indicador Ativo
+    const openChaptersModalBtn = document.getElementById('open-chapters-modal');
+    const chaptersModal = document.getElementById('chapters-modal');
+    const closeChaptersModalBtn = document.getElementById('close-chapters-modal');
+    const okChaptersModalBtn = document.getElementById('ok-chapters-modal');
+    const activeChapterSubtitle = document.getElementById('active-chapter-subtitle');
+    const chapterOptionButtons = Array.from(document.querySelectorAll('.chapter-option-btn'));
+
+    function highlightActiveChapter() {
+      const currentPageNum = pageFlip ? (pageFlip.getCurrentPageIndex() + 1) : 1;
+      const chapters = chapterOptionButtons
+        .map(btn => ({
+          btn,
+          startPage: parseInt(btn.getAttribute('data-page'), 10),
+          title: btn.querySelector('.truncate')?.textContent?.trim() || ''
+        }))
+        .filter(item => !isNaN(item.startPage))
+        .sort((a, b) => a.startPage - b.startPage);
+
+      let activeItem = null;
+      for (let i = 0; i < chapters.length; i++) {
+        const curr = chapters[i];
+        const next = chapters[i + 1];
+        const isInRange = currentPageNum >= curr.startPage && (!next || currentPageNum < next.startPage);
+        if (isInRange) {
+          activeItem = curr;
+          break;
+        }
+      }
+      if (!activeItem && chapters.length > 0 && currentPageNum >= chapters[chapters.length - 1].startPage) {
+        activeItem = chapters[chapters.length - 1];
+      }
+
+      chapterOptionButtons.forEach(btn => {
+        const tag = btn.querySelector('.chapter-current-tag');
+        const isActive = activeItem && btn === activeItem.btn;
+        btn.classList.toggle('active-chapter', !!isActive);
+        if (tag) {
+          tag.classList.toggle('hidden', !isActive);
+        }
+      });
+
+      if (activeItem) {
+        activeChapterSubtitle.textContent = `Você está em: ${activeItem.title} (Pág. ${currentPageNum})`;
+        setTimeout(() => {
+          activeItem.btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 40);
+      } else {
+        activeChapterSubtitle.textContent = `Página atual: ${currentPageNum} — escolha uma seção`;
+      }
+    }
+
+    function openChaptersModal() {
+      highlightActiveChapter();
+      chaptersModal.classList.remove('hidden');
+    }
+
+    openChaptersModalBtn.addEventListener('click', openChaptersModal);
+    closeChaptersModalBtn.addEventListener('click', () => chaptersModal.classList.add('hidden'));
+    okChaptersModalBtn.addEventListener('click', () => chaptersModal.classList.add('hidden'));
+    chaptersModal.addEventListener('click', (e) => { if (e.target === chaptersModal) chaptersModal.classList.add('hidden'); });
+
+    chapterOptionButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetPage = parseInt(btn.getAttribute('data-page'), 10);
+        if (pageFlip && !isNaN(targetPage)) {
+          pageFlip.flip(targetPage - 1);
+        }
+        chaptersModal.classList.add('hidden');
+      });
+    });
+
+    const zoomInBtn = document.getElementById('zoom-in-btn');
+    const zoomOutBtn = document.getElementById('zoom-out-btn');
+    const zoomResetBtn = document.getElementById('zoom-reset-btn');
+    const zoomLevelText = document.getElementById('zoom-level');
+    const handToolBtn = document.getElementById('hand-tool-btn');
+    const selectToolBtn = document.getElementById('select-tool-btn');
+
+    const soundToggleBtn = document.getElementById('sound-toggle-btn');
+    const soundIcon = document.getElementById('sound-icon');
+    const fullscreenBtn = document.getElementById('fullscreen-btn');
+    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+
+    const infoBtn = document.getElementById('info-btn');
+    const infoModal = document.getElementById('info-modal');
+    const closeInfoModal = document.getElementById('close-info-modal');
+    const okInfoModal = document.getElementById('ok-info-modal');
+
+    infoBtn.addEventListener('click', () => infoModal.classList.remove('hidden'));
+    closeInfoModal.addEventListener('click', () => infoModal.classList.add('hidden'));
+    okInfoModal.addEventListener('click', () => infoModal.classList.add('hidden'));
+    infoModal.addEventListener('click', (e) => { if (e.target === infoModal) infoModal.classList.add('hidden'); });
+
+    function applyPdfReadingTheme(mode) {
+      const icon = themeToggleBtn.querySelector('i');
+      if (mode === 'dark') {
+        document.body.classList.add('pdf-inverted-reading');
+        themeToggleBtn.classList.remove('bg-slate-800', 'text-slate-300');
+        themeToggleBtn.classList.add('gold-gradient-btn');
+        icon.className = 'fa-solid fa-sun text-xs sm:text-sm';
+      } else {
+        document.body.classList.remove('pdf-inverted-reading');
+        themeToggleBtn.classList.add('bg-slate-800', 'text-slate-300');
+        themeToggleBtn.classList.remove('gold-gradient-btn');
+        icon.className = 'fa-solid fa-moon text-xs sm:text-sm';
+      }
+      try { localStorage.setItem('flipbook_pdf_reading_mode', mode); } catch (e) {}
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      const isInverted = document.body.classList.contains('pdf-inverted-reading');
+      applyPdfReadingTheme(isInverted ? 'light' : 'dark');
+    });
+
+    try {
+      const savedReadingMode = localStorage.getItem('flipbook_pdf_reading_mode');
+      applyPdfReadingTheme(savedReadingMode === 'dark' ? 'dark' : 'light');
+    } catch (e) {
+      applyPdfReadingTheme('light');
+    }
+
+    const toggleSearchBtn = document.getElementById('toggle-search-btn');
+    const searchSidebar = document.getElementById('search-sidebar');
+    const closeSearchBtn = document.getElementById('close-search-btn');
+    const searchInput = document.getElementById('search-input');
+    const searchExecBtn = document.getElementById('search-exec-btn');
+    const searchResults = document.getElementById('search-results');
+    const searchStats = document.getElementById('search-stats');
+
+    const selectionPopover = document.getElementById('selection-popover');
+    const selTtsBtn = document.getElementById('sel-tts-btn');
+    const selTtsStopBtn = document.getElementById('sel-tts-stop-btn');
+    const selGoogleBtn = document.getElementById('sel-google-btn');
+    const selShareBtn = document.getElementById('sel-share-btn');
+    const selHandBtn = document.getElementById('sel-hand-btn');
+    const selHandIcon = document.getElementById('sel-hand-icon');
+    const selHandLabel = document.getElementById('sel-hand-label');
+
+    const googleModal = document.getElementById('google-modal');
+    const googleModalTitle = document.getElementById('google-modal-title');
+    const googleSearchIframe = document.getElementById('google-search-iframe');
+    const googleExternalLink = document.getElementById('google-external-link');
+    const closeGoogleModal = document.getElementById('close-google-modal');
+
+    const ttsPageBtn = document.getElementById('tts-page-btn');
+    const ttsStopBtn = document.getElementById('tts-stop-btn');
+    const topSpeedWrapper = document.getElementById('top-speed-dropdown-wrapper');
+    const ttsSpeedBtn = document.getElementById('tts-speed-btn');
+    const ttsSpeedLabel = document.getElementById('tts-speed-label');
+    const ttsSpeedMenu = document.getElementById('tts-speed-menu');
+
+    const selSpeedWrapper = document.getElementById('sel-speed-dropdown-wrapper');
+    const selTtsSpeedBtn = document.getElementById('sel-tts-speed-btn');
+    const selTtsSpeedLabel = document.getElementById('sel-tts-speed-label');
+    const selTtsSpeedMenu = document.getElementById('sel-tts-speed-menu');
+
+    const resumeToast = document.getElementById('resume-toast');
+    const resumeToastText = document.getElementById('resume-toast-text');
+    const resumeRestartBtn = document.getElementById('resume-restart-btn');
+    const resumeCloseBtn = document.getElementById('resume-close-btn');
+
+    function closeAllDropdowns() {
+      ttsSpeedMenu.classList.add('hidden');
+      selTtsSpeedMenu.classList.add('hidden');
+      pageListMenu.classList.add('hidden');
+    }
+
+    ttsSpeedBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wasHidden = ttsSpeedMenu.classList.contains('hidden');
+      closeAllDropdowns();
+      if (wasHidden) ttsSpeedMenu.classList.remove('hidden');
+    });
+
+    selTtsSpeedBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wasHidden = selTtsSpeedMenu.classList.contains('hidden');
+      closeAllDropdowns();
+      if (wasHidden) selTtsSpeedMenu.classList.remove('hidden');
+    });
+
+    pageListBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wasHidden = pageListMenu.classList.contains('hidden');
+      closeAllDropdowns();
+      if (wasHidden) {
+        pageListMenu.classList.remove('hidden');
+        const activeItem = pageListMenu.querySelector('.active-option');
+        if (activeItem) activeItem.scrollIntoView({ block: 'nearest' });
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!topSpeedWrapper.contains(e.target) && !selSpeedWrapper.contains(e.target) && !pageDropdownWrapper.contains(e.target)) {
+        closeAllDropdowns();
+      }
+    });
+
+    document.querySelectorAll('#tts-speed-menu button, #sel-tts-speed-menu button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const newSpeed = btn.getAttribute('data-speed');
+        handleSpeedChange(newSpeed);
+        closeAllDropdowns();
+      });
+    });
+
+    function playFlipSound() {
+      if (!isSoundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const bufferSize = audioCtx.sampleRate * 0.12;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 1000;
+        filter.Q.value = 1.2;
+
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.01, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.11);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(audioCtx.destination);
+        noise.start();
+      } catch (e) {}
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadPredefinedPDF(PREDEFINED_PDF_URL, PREDEFINED_BOOK_TITLE);
+    });
+
+    async function loadPredefinedPDF(url, filename) {
+      pdfFilename.textContent = filename;
+      loadingSection.classList.remove('hidden');
+      loadingProgress.textContent = 'Baixando e estruturando o livro predefinido...';
+
+      try {
+        const loadingTask = pdfjsLib.getDocument(url);
+        pdfDoc = await loadingTask.promise;
+        totalPages = pdfDoc.numPages;
+        currentPdfKey = `flipbook_book_pos_${filename}_${totalPages}`;
+
+        pageTotalCount.textContent = totalPages;
+        populatePageListMenu(totalPages);
+
+        const firstPage = await pdfDoc.getPage(1);
+        const baseViewport = firstPage.getViewport({ scale: 1.0 });
+        basePageAspect = { width: baseViewport.width, height: baseViewport.height };
+
+        loadingSection.classList.add('hidden');
+        flipbookSection.classList.remove('hidden');
+        bottomControls.classList.remove('hidden');
+
+        const { calcWidth, calcHeight } = calculateBookDimensions(baseViewport.width, baseViewport.height);
+
+        loadingSection.classList.remove('hidden');
+        flipbookSection.classList.add('hidden');
+
+        const pageElements = await renderAllPagesWithText(pdfDoc, calcWidth, calcHeight);
+        cachedPageElements = pageElements;
+
+        loadingSection.classList.add('hidden');
+        flipbookSection.classList.remove('hidden');
+
+        const savedPage = parseInt(localStorage.getItem(currentPdfKey), 10);
+        const startPageIndex = (!isNaN(savedPage) && savedPage > 1 && savedPage <= totalPages) ? savedPage - 1 : 0;
+
+        initFlipbook(calcWidth, calcHeight, pageElements, startPageIndex);
+        updateBgmForPage(startPageIndex + 1);
+
+        if (startPageIndex > 0) showResumeToast(startPageIndex + 1);
+
+      } catch (error) {
+        console.error(error);
+        alert('Erro ao carregar a URL predefinida do PDF.');
+        loadingSection.classList.add('hidden');
+      }
+    }
+
+    function calculateBookDimensions(origWidth, origHeight) {
+      const containerWidth = flipbookSection.clientWidth || window.innerWidth;
+      const containerHeight = (flipbookSection.clientHeight || (window.innerHeight - 104));
+
+      if (isMobileSinglePageMode()) {
+        const maxW = containerWidth * 0.94;
+        const maxH = containerHeight * 0.95;
+
+        let calcHeight = maxH;
+        let calcWidth = calcHeight * (origWidth / origHeight);
+
+        if (calcWidth > maxW) {
+          calcWidth = maxW;
+          calcHeight = calcWidth * (origHeight / origWidth);
+        }
+        return { calcWidth: Math.round(calcWidth), calcHeight: Math.round(calcHeight) };
+      }
+
+      const desktopContainerHeight = containerHeight - 30;
+      let calcHeight = Math.min(desktopContainerHeight * 0.88, 820);
+      let calcWidth = calcHeight * (origWidth / origHeight);
+
+      if (calcWidth * 2 > containerWidth * 0.92) {
+        calcWidth = (containerWidth * 0.92) / 2;
+        calcHeight = calcWidth * (origHeight / origWidth);
+      }
+      return { calcWidth: Math.round(calcWidth), calcHeight: Math.round(calcHeight) };
+    }
+
+    async function renderAllPagesWithText(pdf, targetWidth, targetHeight) {
+      const pageElements = [];
+      pagesTextData = [];
+      flipbookContainer.innerHTML = '';
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        loadingProgress.textContent = `Renderizando página ${pageNum} de ${pdf.numPages}...`;
+
+        const page = await pdf.getPage(pageNum);
+        const renderViewport = page.getViewport({ scale: 1.8 });
+
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.height = renderViewport.height;
+        canvas.width = renderViewport.width;
+
+        await page.render({ canvasContext: context, viewport: renderViewport }).promise;
+        const imgUrl = canvas.toDataURL('image/jpeg', 0.90);
+
+        const textContent = await page.getTextContent();
+        const fullPageText = textContent.items.map(item => item.str).join(' ').replace(/\s+/g, ' ').trim();
+        pagesTextData.push({ pageNum, text: fullPageText });
+
+        const pageDiv = document.createElement('div');
+        pageDiv.className = 'page-flip-element flex items-center justify-center overflow-hidden';
+        pageDiv.style.width = `${targetWidth}px`;
+        pageDiv.style.height = `${targetHeight}px`;
+
+        const img = document.createElement('img');
+        img.src = imgUrl;
+        img.className = 'w-full h-full object-contain pointer-events-none select-none';
+        img.draggable = false;
+
+        const textLayerDiv = document.createElement('div');
+        textLayerDiv.className = 'text-layer';
+        const displayViewport = page.getViewport({ scale: targetWidth / page.getViewport({ scale: 1.0 }).width });
+
+        pdfjsLib.renderTextLayer({
+          textContent: textContent,
+          container: textLayerDiv,
+          viewport: displayViewport,
+          textDivs: []
+        });
+
+        pageDiv.appendChild(img);
+        pageDiv.appendChild(textLayerDiv);
+        pageElements.push(pageDiv);
+      }
+
+      return pageElements;
+    }
+
+    function initFlipbook(calcWidth, calcHeight, pageElements, startPageIndex = 0) {
+      if (pageFlip) {
+        try { pageFlip.destroy(); } catch (e) {}
+      }
+
+      const mobileMode = isMobileSinglePageMode();
+
+      pageFlip = new Custom3DFlipbook(flipbookContainer, {
+        width: calcWidth,
+        height: calcHeight,
+        flippingTime: 650,
+        singlePageMode: mobileMode
+      });
+
+      pageFlip.loadFromHTML(pageElements, startPageIndex);
+
+      pageFlip.on('flip', (e) => {
+        playFlipSound();
+        stopSpeech();
+        hideSelectionPopover();
+        const pageNum = e.data + 1;
+        updatePageIndicator(e.data);
+        saveReadingProgress(pageNum);
+        updateBgmForPage(pageNum);
+      });
+
+      updatePageIndicator(pageFlip.getCurrentPageIndex());
+    }
+
+    let resizeTimeout = null;
+    window.addEventListener('resize', () => {
+      if (!pdfDoc || !pageFlip || cachedPageElements.length === 0) return;
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(async () => {
+        const currentPageIdx = pageFlip.getCurrentPageIndex();
+        const { calcWidth, calcHeight } = calculateBookDimensions(basePageAspect.width, basePageAspect.height);
+        const newElements = await renderAllPagesWithText(pdfDoc, calcWidth, calcHeight);
+        cachedPageElements = newElements;
+        currentZoom = 1.0;
+        panX = 0;
+        panY = 0;
+        setHandMode(false);
+        applyTransform();
+        initFlipbook(calcWidth, calcHeight, newElements, currentPageIdx);
+      }, 220);
+    });
+
+    function populatePageListMenu(total) {
+      pageListMenu.innerHTML = '';
+      for (let i = 1; i <= total; i++) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.page = i;
+        btn.textContent = i === 1 ? '1 (Capa)' : (i === total ? `${i} (Fim)` : `Pág. ${i}`);
+        btn.className = 'custom-dropdown-option w-full text-left px-3 py-1.5 text-xs sm:text-sm block';
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (pageFlip) pageFlip.flip(i - 1);
+          closeAllDropdowns();
+        });
+        pageListMenu.appendChild(btn);
+      }
+    }
+
+    function updatePageIndicator(pageIndex) {
+      const currentPageNum = pageIndex + 1;
+      pageListLabel.textContent = currentPageNum === 1 ? '1 (Capa)' : (currentPageNum === totalPages ? `${currentPageNum} (Fim)` : `Pág. ${currentPageNum}`);
+
+      pageListMenu.querySelectorAll('button').forEach(btn => {
+        if (parseInt(btn.dataset.page, 10) === currentPageNum) {
+          btn.classList.add('active-option');
+        } else {
+          btn.classList.remove('active-option');
+        }
+      });
+
+      if (pageFlip && pageFlip.singlePageMode) {
+        spreadIndicator.textContent = currentPageNum === 1 ? 'Capa (Página 1)' : `Página ${currentPageNum}`;
+      } else if (currentPageNum === 1) {
+        spreadIndicator.textContent = 'Capa (Página 1)';
+      } else if (currentPageNum >= totalPages) {
+        spreadIndicator.textContent = `Contracapa (Página ${totalPages})`;
+      } else {
+        const nextPage = Math.min(currentPageNum + 1, totalPages);
+        spreadIndicator.textContent = `Páginas ${currentPageNum} - ${nextPage}`;
+      }
+
+      const isFirst = currentPageNum <= 1;
+      const isLast = pageFlip ? (pageFlip.currentSpread >= pageFlip.maxSpread) : (currentPageNum >= totalPages);
+
+      prevBtn.disabled = isFirst;
+      footerPrevBtn.disabled = isFirst;
+      firstPageBtn.disabled = isFirst;
+      nextBtn.disabled = isLast;
+      footerNextBtn.disabled = isLast;
+      lastPageBtn.disabled = isLast;
+    }
+
+    function saveReadingProgress(pageNum) {
+      if (!currentPdfKey) return;
+      try { localStorage.setItem(currentPdfKey, pageNum.toString()); } catch (e) {}
+    }
+
+    function showResumeToast(pageNum) {
+      resumeToastText.textContent = `Retomado da página ${pageNum} onde você parou.`;
+      resumeToast.classList.remove('hidden');
+      setTimeout(() => resumeToast.classList.add('hidden'), 7000);
+    }
+
+    resumeRestartBtn.addEventListener('click', () => { if (pageFlip) pageFlip.flip(0); resumeToast.classList.add('hidden'); });
+    resumeCloseBtn.addEventListener('click', () => resumeToast.classList.add('hidden'));
+
+    prevBtn.addEventListener('click', () => pageFlip && pageFlip.flipPrev());
+    footerPrevBtn.addEventListener('click', () => pageFlip && pageFlip.flipPrev());
+    nextBtn.addEventListener('click', () => pageFlip && pageFlip.flipNext());
+    footerNextBtn.addEventListener('click', () => pageFlip && pageFlip.flipNext());
+    firstPageBtn.addEventListener('click', () => pageFlip && pageFlip.flip(0));
+    lastPageBtn.addEventListener('click', () => pageFlip && pageFlip.flip(totalPages - 1));
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        infoModal.classList.add('hidden');
+        chaptersModal.classList.add('hidden');
+        googleModal.classList.add('hidden');
+        closeAllDropdowns();
+      }
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!pageFlip) return;
+
+      const keyLower = e.key.toLowerCase();
+      if (e.key === 'ArrowLeft') pageFlip.flipPrev();
+      else if (e.key === 'ArrowRight') pageFlip.flipNext();
+      else if (e.key === 'ArrowUp' || e.key === 'Home') { e.preventDefault(); pageFlip.flip(0); }
+      else if (e.key === 'ArrowDown' || e.key === 'End') { e.preventDefault(); pageFlip.flip(totalPages - 1); }
+      else if (keyLower === 'm') { e.preventDefault(); setHandMode(true); }
+      else if (keyLower === 's') { e.preventDefault(); setHandMode(false); }
+    });
+
+    function syncSelectionHandButton() {
+      if (!selHandBtn || !selHandIcon || !selHandLabel) return;
+      if (isHandMode) {
+        selHandIcon.className = 'fa-solid fa-i-cursor';
+        selHandLabel.textContent = 'Selecionar';
+        selHandBtn.title = 'Voltar para Seleção de Texto (Atalho: S)';
+        selHandBtn.classList.remove('text-amber-400');
+        selHandBtn.classList.add('gold-gradient-btn');
+      } else {
+        selHandIcon.className = 'fa-solid fa-hand';
+        selHandLabel.textContent = 'Mão';
+        selHandBtn.title = 'Alternar para Modo Mão (Atalho: M)';
+        selHandBtn.classList.remove('gold-gradient-btn');
+        selHandBtn.classList.add('text-amber-400');
+      }
+    }
+
+    function syncBottomToolButtons() {
+      if (handToolBtn) {
+        if (isHandMode) {
+          handToolBtn.classList.remove('bg-slate-800', 'text-slate-300', 'gold-hover');
+          handToolBtn.classList.add('gold-gradient-btn');
+        } else {
+          handToolBtn.classList.add('bg-slate-800', 'text-slate-300', 'gold-hover');
+          handToolBtn.classList.remove('gold-gradient-btn');
+        }
+      }
+
+      if (selectToolBtn) {
+        if (!isHandMode) {
+          selectToolBtn.classList.remove('bg-slate-800', 'text-slate-300', 'gold-hover');
+          selectToolBtn.classList.add('gold-gradient-btn');
+        } else {
+          selectToolBtn.classList.add('bg-slate-800', 'text-slate-300', 'gold-hover');
+          selectToolBtn.classList.remove('gold-gradient-btn');
+        }
+      }
+    }
+
+    function setHandMode(active) {
+      isHandMode = active;
+      if (isHandMode) {
+        viewportPanArea.classList.add('hand-mode-active');
+      } else {
+        viewportPanArea.classList.remove('hand-mode-active');
+      }
+      syncBottomToolButtons();
+      syncSelectionHandButton();
+    }
+
+    handToolBtn.addEventListener('click', () => {
+      setHandMode(true);
+      window.getSelection()?.removeAllRanges();
+      hideSelectionPopover();
+    });
+
+    selectToolBtn.addEventListener('click', () => {
+      setHandMode(false);
+    });
+
+    selHandBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const nextMode = !isHandMode;
+      setHandMode(nextMode);
+      if (nextMode) {
+        window.getSelection()?.removeAllRanges();
+        hideSelectionPopover();
+      }
+    });
+
+    function setZoom(newZoom) {
+      currentZoom = Math.max(0.7, Math.min(3.0, newZoom));
+      if (currentZoom > 1.0 && !isHandMode) setHandMode(true);
+      else if (currentZoom <= 1.0) { panX = 0; panY = 0; setHandMode(false); }
+      applyTransform();
+    }
+
+    function applyTransform() {
+      flipbookWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+      zoomLevelText.textContent = `${Math.round(currentZoom * 100)}%`;
+    }
+
+    zoomInBtn.addEventListener('click', () => setZoom(currentZoom + 0.25));
+    zoomOutBtn.addEventListener('click', () => setZoom(currentZoom - 0.25));
+    zoomResetBtn.addEventListener('click', () => { currentZoom = 1.0; panX = 0; panY = 0; setHandMode(false); applyTransform(); });
+
+    viewportPanArea.addEventListener('wheel', (e) => {
+      if (!pageFlip) return;
+      e.preventDefault();
+      const step = 0.15;
+      const delta = e.deltaY < 0 ? step : -step;
+      setZoom(Number((currentZoom + delta).toFixed(2)));
+    }, { passive: false });
+
+    viewportPanArea.addEventListener('mousedown', (e) => {
+      if (!isHandMode) return;
+      e.stopPropagation();
+      e.preventDefault();
+      isPanning = true;
+      startPanX = e.clientX - panX;
+      startPanY = e.clientY - panY;
+    }, true);
+
+    viewportPanArea.addEventListener('touchstart', (e) => {
+      if (!isHandMode || e.touches.length !== 1) return;
+      e.stopPropagation();
+      isPanning = true;
+      startPanX = e.touches[0].clientX - panX;
+      startPanY = e.touches[0].clientY - panY;
+    }, { capture: true, passive: true });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isPanning || !isHandMode) return;
+      e.stopPropagation();
+      panX = e.clientX - startPanX;
+      panY = e.clientY - startPanY;
+      applyTransform();
+    }, true);
+
+    window.addEventListener('touchmove', (e) => {
+      if (!isPanning || !isHandMode || e.touches.length !== 1) return;
+      if (e.cancelable) e.preventDefault();
+      panX = e.touches[0].clientX - startPanX;
+      panY = e.touches[0].clientY - startPanY;
+      applyTransform();
+    }, { capture: true, passive: false });
+
+    window.addEventListener('mouseup', (e) => {
+      if (isPanning) { e.stopPropagation(); isPanning = false; }
+    }, true);
+
+    window.addEventListener('touchend', () => {
+      if (isPanning) isPanning = false;
+    }, true);
+
+    toggleSearchBtn.addEventListener('click', () => {
+      searchSidebar.classList.toggle('hidden');
+      if (!searchSidebar.classList.contains('hidden')) searchInput.focus();
+    });
+    closeSearchBtn.addEventListener('click', () => searchSidebar.classList.add('hidden'));
+
+    function executeSearch() {
+      const query = searchInput.value.trim();
+      searchResults.innerHTML = '';
+      if (!query) { searchStats.textContent = 'Digite um termo para pesquisar.'; return; }
+
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      let matchCount = 0;
+
+      pagesTextData.forEach(pageObj => {
+        if (regex.test(pageObj.text)) {
+          matchCount++;
+          const idx = pageObj.text.toLowerCase().indexOf(query.toLowerCase());
+          const start = Math.max(0, idx - 45);
+          const end = Math.min(pageObj.text.length, idx + query.length + 65);
+          let snippet = (start > 0 ? '...' : '') + pageObj.text.slice(start, end) + (end < pageObj.text.length ? '...' : '');
+          snippet = snippet.replace(regex, '<mark class="bg-amber-400 text-black font-semibold px-0.5 rounded transition-colors">$1</mark>');
+
+          const card = document.createElement('button');
+          card.className = 'w-full text-left p-2.5 rounded-xl bg-slate-900/90 gold-hover border border-slate-700/60 transition-all block group';
+          card.innerHTML = `<div class="text-xs font-semibold text-amber-400 mb-1 transition-colors">Página ${pageObj.pageNum}</div><div class="text-xs text-slate-300 leading-relaxed transition-colors">${snippet}</div>`;
+          card.addEventListener('click', () => {
+            if (pageFlip) pageFlip.flip(pageObj.pageNum - 1);
+            if (isMobileSinglePageMode()) searchSidebar.classList.add('hidden');
+          });
+          searchResults.appendChild(card);
+        }
+      });
+      searchStats.textContent = matchCount === 0 ? 'Nenhum resultado.' : `${matchCount} página(s) encontrada(s).`;
+    }
+
+    searchExecBtn.addEventListener('click', executeSearch);
+    searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') executeSearch(); });
+
+    function handleTextSelectionCheck() {
+      setTimeout(() => {
+        const selection = window.getSelection();
+        const text = selection ? selection.toString().trim() : '';
+
+        if (text.length > 2 && !isHandMode) {
+          selectedTextCache = text;
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+
+          const halfW = Math.min(200, window.innerWidth * 0.46);
+          selectionPopover.style.left = `${Math.min(window.innerWidth - halfW, Math.max(halfW, rect.left + rect.width / 2))}px`;
+          selectionPopover.style.top = `${Math.max(54, rect.top - 48)}px`;
+          syncSelectionHandButton();
+          selectionPopover.classList.remove('hidden');
+        } else {
+          hideSelectionPopover();
+        }
+      }, 20);
+    }
+
+    document.addEventListener('mouseup', (e) => {
+      if (selectionPopover.contains(e.target)) return;
+      handleTextSelectionCheck();
+    });
+
+    document.addEventListener('touchend', (e) => {
+      if (selectionPopover.contains(e.target)) return;
+      handleTextSelectionCheck();
+    });
+
+    function hideSelectionPopover() {
+      selectionPopover.classList.add('hidden');
+      selTtsStopBtn.classList.add('hidden');
+      selTtsBtn.classList.remove('hidden');
+    }
+
+    selTtsBtn.addEventListener('click', () => {
+      if (selectedTextCache) {
+        speakText(selectedTextCache, () => {
+          selTtsStopBtn.classList.add('hidden');
+          selTtsBtn.classList.remove('hidden');
+        }, true);
+        selTtsBtn.classList.add('hidden');
+        selTtsStopBtn.classList.remove('hidden');
+      }
+    });
+
+    selTtsStopBtn.addEventListener('click', () => {
+      stopSpeech();
+      selTtsStopBtn.classList.add('hidden');
+      selTtsBtn.classList.remove('hidden');
+    });
+
+    selGoogleBtn.addEventListener('click', () => {
+      if (!selectedTextCache) return;
+      const query = encodeURIComponent(selectedTextCache);
+      googleModalTitle.textContent = `Google: "${selectedTextCache.slice(0, 40)}..."`;
+      googleSearchIframe.src = `https://www.google.com/search?igu=1&q=${query}`;
+      googleExternalLink.href = `https://www.google.com/search?q=${query}`;
+      googleModal.classList.remove('hidden');
+      hideSelectionPopover();
+    });
+
+    closeGoogleModal.addEventListener('click', () => {
+      googleModal.classList.add('hidden');
+      googleSearchIframe.src = 'about:blank';
+    });
+
+    selShareBtn.addEventListener('click', async () => {
+      if (!selectedTextCache) return;
+      const currentPg = pageFlip ? pageFlip.getCurrentPageIndex() + 1 : 1;
+      const payload = `"${selectedTextCache}"\n— ${pdfFilename.textContent} (Pág. ${currentPg})`;
+
+      if (navigator.share) {
+        try { await navigator.share({ title: pdfFilename.textContent, text: payload }); } catch (e) {}
+      } else {
+        try { await navigator.clipboard.writeText(payload); } catch (e) {}
+      }
+      hideSelectionPopover();
+    });
+
+    function launchSpeechUtterance(offset) {
+      const remainingText = activeSpeechText.slice(offset);
+      if (!remainingText || remainingText.trim().length === 0) {
+        const cb = activeSpeechOnEnd;
+        activeSpeechText = '';
+        activeSpeechOnEnd = null;
+        isRestartingSpeech = false;
+        stopSpeechUI();
+        applyAudioDucking(false);
+        if (cb) cb();
+        return;
+      }
+
+      const speed = speechCurrentRate || 1.0;
+      activeSpeechOffset = offset;
+      lastBoundaryCharIndex = 0;
+      speechStartTimestamp = performance.now();
+
+      const utterance = new SpeechSynthesisUtterance(remainingText);
+      utterance.lang = 'pt-BR';
+      utterance.rate = speed;
+
+      utterance.onboundary = (event) => {
+        if (typeof event.charIndex === 'number' && event.charIndex >= 0) lastBoundaryCharIndex = event.charIndex;
+      };
+
+      utterance.onstart = () => {
+        isRestartingSpeech = false;
+        speechStartTimestamp = performance.now();
+        if (ttsStopBtn) ttsStopBtn.classList.remove('hidden');
+        if (ttsPageBtn) ttsPageBtn.classList.add('gold-gradient-btn');
+        if (activeSpeechIsSelection) {
+          if (selTtsBtn) selTtsBtn.classList.add('hidden');
+          if (selTtsStopBtn) selTtsStopBtn.classList.remove('hidden');
+        }
+        applyAudioDucking(true);
+      };
+
+      utterance.onend = () => {
+        if (isRestartingSpeech) return;
+        const cb = activeSpeechOnEnd;
+        activeSpeechText = '';
+        activeSpeechOnEnd = null;
+        stopSpeechUI();
+        applyAudioDucking(false);
+        if (cb) cb();
+      };
+
+      utterance.onerror = (event) => {
+        if (isRestartingSpeech || (event && (event.error === 'interrupted' || event.error === 'canceled'))) return;
+        const cb = activeSpeechOnEnd;
+        activeSpeechText = '';
+        activeSpeechOnEnd = null;
+        stopSpeechUI();
+        applyAudioDucking(false);
+        if (cb) cb();
+      };
+
+      synth.speak(utterance);
+    }
+
+    function speakText(text, onEndCallback = null, isSelection = false) {
+      if (!('speechSynthesis' in window)) { alert('Seu navegador não suporta leitura de voz.'); return; }
+      stopSpeech();
+      if (!text || text.trim().length === 0) return;
+
+      activeSpeechText = text;
+      activeSpeechOffset = 0;
+      lastBoundaryCharIndex = 0;
+      activeSpeechOnEnd = onEndCallback;
+      activeSpeechIsSelection = isSelection;
+      launchSpeechUtterance(0);
+    }
+
+    function handleSpeedChange(newSpeedStr) {
+      const parsedSpeed = parseFloat(newSpeedStr) || 1.0;
+      const formattedLabel = parsedSpeed.toFixed(parsedSpeed === 0.75 || parsedSpeed === 1.25 ? 2 : 1) + 'x';
+
+      ttsSpeedLabel.textContent = formattedLabel;
+      selTtsSpeedLabel.textContent = formattedLabel;
+
+      document.querySelectorAll('#tts-speed-menu button, #sel-tts-speed-menu button').forEach(btn => {
+        if (btn.getAttribute('data-speed') === newSpeedStr) {
+          btn.classList.add('active-option');
+        } else {
+          btn.classList.remove('active-option');
+        }
+      });
+
+      if (synth && (synth.speaking || synth.pending) && activeSpeechText) {
+        let estimatedAdvance = lastBoundaryCharIndex;
+        if (estimatedAdvance === 0 && speechStartTimestamp > 0) {
+          const elapsedSec = (performance.now() - speechStartTimestamp) / 1000;
+          estimatedAdvance = Math.floor(elapsedSec * 14 * speechCurrentRate);
+        }
+
+        let newOffset = activeSpeechOffset + estimatedAdvance;
+        while (newOffset > activeSpeechOffset && newOffset < activeSpeechText.length && !/\s/.test(activeSpeechText[newOffset - 1])) {
+          newOffset--;
+        }
+        newOffset = Math.max(0, Math.min(activeSpeechText.length - 1, newOffset));
+
+        speechCurrentRate = parsedSpeed;
+        isRestartingSpeech = true;
+        synth.cancel();
+        setTimeout(() => { launchSpeechUtterance(newOffset); }, 40);
+      } else {
+        speechCurrentRate = parsedSpeed;
+      }
+    }
+
+    function stopSpeech() {
+      isRestartingSpeech = false;
+      activeSpeechText = '';
+      activeSpeechOnEnd = null;
+      activeSpeechIsSelection = false;
+      if (synth && (synth.speaking || synth.pending)) synth.cancel();
+      stopSpeechUI();
+      applyAudioDucking(false);
+    }
+
+    function stopSpeechUI() {
+      if (ttsStopBtn) ttsStopBtn.classList.add('hidden');
+      if (ttsPageBtn) ttsPageBtn.classList.remove('gold-gradient-btn');
+      if (selTtsStopBtn) selTtsStopBtn.classList.add('hidden');
+      if (selTtsBtn) selTtsBtn.classList.remove('hidden');
+    }
+
+    if (ttsPageBtn) {
+      ttsPageBtn.addEventListener('click', () => {
+        if (!pageFlip || pagesTextData.length === 0) return;
+        const idx = pageFlip.getCurrentPageIndex();
+        let textToRead = pagesTextData[idx]?.text || '';
+        if (!pageFlip.singlePageMode && idx > 0 && idx + 1 < pagesTextData.length) {
+          textToRead += ' ' + (pagesTextData[idx + 1]?.text || '');
+        }
+        speakText(textToRead, null, false);
+      });
+    }
+
+    if (ttsStopBtn) ttsStopBtn.addEventListener('click', stopSpeech);
+
+    soundToggleBtn.addEventListener('click', () => {
+      isSoundEnabled = !isSoundEnabled;
+      soundIcon.className = isSoundEnabled ? 'fa-solid fa-volume-high text-xs' : 'fa-solid fa-volume-xmark text-xs text-red-400';
+    });
+
+    fullscreenBtn.addEventListener('click', () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+      else if (document.exitFullscreen) document.exitFullscreen();
+    });
+  </script>
+</body>
+</html>
